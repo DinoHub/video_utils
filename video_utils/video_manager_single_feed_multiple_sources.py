@@ -1,10 +1,19 @@
 from video_util import video_manager
 
+
 class VideoManager(video_manager.VideoManager):
-    def __init__(self, source_type, stream, manual_video_fps, rectangle_crops, queue_size=3, recording_dir=None,
-                 reconnect_threshold_sec=20,
-                 max_height=1080,
-                 method='cv2'):
+    def __init__(
+        self,
+        source_type,
+        stream,
+        manual_video_fps,
+        rectangle_crops,
+        queue_size=3,
+        recording_dir=None,
+        reconnect_threshold_sec=20,
+        max_height=1080,
+        method="cv2",
+    ):
         """VideoManager that helps with multiple concurrent video streams
 
         Args:
@@ -28,29 +37,37 @@ class VideoManager(video_manager.VideoManager):
 
         self.videos = []
 
-        if (method == 'cv2'):
+        if method == "cv2":
             from .video_getter_cv2 import VideoStream
-        elif (method == 'vlc'):
+        elif method == "vlc":
             from .video_getter_vlc import VideoStream
         else:
             from .video_getter_cv2 import VideoStream
 
-        stream = VideoStream('MASTER_STREAM', source_type, stream, manual_video_fps=int(manual_video_fps),
-                             queue_size=int(queue_size), recording_dir=recording_dir,
-                             reconnect_threshold_sec=int(reconnect_threshold_sec))
+        stream = VideoStream(
+            "MASTER_STREAM",
+            source_type,
+            stream,
+            manual_video_fps=int(manual_video_fps),
+            queue_size=int(queue_size),
+            recording_dir=recording_dir,
+            reconnect_threshold_sec=int(reconnect_threshold_sec),
+        )
 
-        self.videos.append({'video_feed_name': 'MASTER_STREAM', 'stream': stream})
+        self.videos.append({"video_feed_name": "MASTER_STREAM", "stream": stream})
 
     def read(self):
         frames = []
 
         for vid in self.videos:
-            if not vid['stream'].more():  # Frame not here yet
-                frames = ([[]] * len(self.rectangle_crops))  # Maintain frames size(frame from each video feed)
+            if not vid["stream"].more():  # Frame not here yet
+                frames = [[]] * len(
+                    self.rectangle_crops
+                )  # Maintain frames size(frame from each video feed)
             else:
-                frame = vid['stream'].read()
+                frame = vid["stream"].read()
                 for cur_rectangle_crop in self.rectangle_crops:
                     x, y, w, h = cur_rectangle_crop
-                    frames.append(frame[y:y + h, x:x + w])
+                    frames.append(frame[y : y + h, x : x + w])
 
         return frames

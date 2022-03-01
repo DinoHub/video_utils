@@ -35,14 +35,21 @@ class FrameDrawer(object):
         frame_deep_copied = copy.deepcopy(source_frame)
 
         for cur_detection in detections:
-            text = f'{cur_detection[0]}: {cur_detection[1] * 100:0.2f}%'
+            text = f"{cur_detection[0]}: {cur_detection[1] * 100:0.2f}%"
             l = cur_detection[2][0]
             t = cur_detection[2][1]
             r = cur_detection[2][2]
             b = cur_detection[2][3]
-            cv2.rectangle(frame_deep_copied, (l, t), (r, b), color, self.rectangleThickness)
-            cv2.putText(frame_deep_copied,
-                        text,
-                        (l + 5, b - 10),
-                        self.font, self.fontScale, color, self.fontThickness)
+            cv2.rectangle(
+                frame_deep_copied, (l, t), (r, b), color, self.rectangleThickness
+            )
+            cv2.putText(
+                frame_deep_copied,
+                text,
+                (l + 5, b - 10),
+                self.font,
+                self.fontScale,
+                color,
+                self.fontThickness,
+            )
         return frame_deep_copied

@@ -1,14 +1,22 @@
 from pathlib import Path
 
+
 class VideoManager:
-    def __init__(self, video_feed_names, source_types, streams, manual_video_fps, queue_size=3, recording_dir=None,
-                 reconnect_threshold_sec=20,
-                 do_reconnect=True,
-                 max_height=None,
-                 method='cv2',
-                 frame_crop=None,
-                 rtsp_tcp=True,
-                ):
+    def __init__(
+        self,
+        video_feed_names,
+        source_types,
+        streams,
+        manual_video_fps,
+        queue_size=3,
+        recording_dir=None,
+        reconnect_threshold_sec=20,
+        do_reconnect=True,
+        max_height=None,
+        method="cv2",
+        frame_crop=None,
+        rtsp_tcp=True,
+    ):
         """VideoManager that helps with multiple concurrent video streams
 
         Args:
@@ -19,43 +27,48 @@ class VideoManager:
             queue_size (int or None): No. of frames to buffer in memory to prevent blocking I/O operations (https://www.pyimagesearch.com/2017/02/06/faster-video-file-fps-with-cv2-videocapture-and-opencv/). Set to None to prevent dropping any frames (only do this for video files)
             recording_dir (str): Path to folder to record source video, None to disable recording.
             reconnect_threshold_sec (int): Min seconds between reconnection attempts, set higher for vlc to give it time to connect
-            do_reconnect (bool): Flag whether to perform reconnection after reconnect threshold duration is met. If False, then VideoStream will not reconnect, instead will stop after deque is consumed finished. (Defaults to True, but if want to process a video file once through then set to False.) 
+            do_reconnect (bool): Flag whether to perform reconnection after reconnect threshold duration is met. If False, then VideoStream will not reconnect, instead will stop after deque is consumed finished. (Defaults to True, but if want to process a video file once through then set to False.)
             max_height(int): Max height of video in px
             method (str): 'cv2' or 'vlc', 'vlc' is slower but more robust to artifacting
-            frame_crop (list): LTRB coordinates for frame cropping 
-            rtsp_tcp (bool): Only for 'vlc' method. Default is True. If rtsp stream is UDP, then setting to False will remove "--rtsp-tcp" flag from vlc command. 
+            frame_crop (list): LTRB coordinates for frame cropping
+            rtsp_tcp (bool): Only for 'vlc' method. Default is True. If rtsp stream is UDP, then setting to False will remove "--rtsp-tcp" flag from vlc command.
         """
 
         # self.max_height = int(max_height)
         self.num_vid_streams = len(streams)
         self.stopped = True
 
-        assert len(streams) == len(source_types) == len(
-            video_feed_names), 'streams, source types and camNames should be the same length'
+        assert (
+            len(streams) == len(source_types) == len(video_feed_names)
+        ), "streams, source types and camNames should be the same length"
         self.videos = []
 
-        if (method == 'cv2'):
+        if method == "cv2":
             from .video_getter_cv2 import VideoStream
-        elif (method == 'vlc'):
+        elif method == "vlc":
             from .video_getter_vlc import VideoStream
         else:
             from .video_getter_cv2 import VideoStream
 
         for i, video_feed_name in enumerate(video_feed_names):
-            stream = VideoStream(video_feed_name, source_types[i], streams[i],
-                                 manual_video_fps=int(manual_video_fps[i]),
-                                 queue_size=queue_size, recording_dir=recording_dir,
-                                 reconnect_threshold_sec=int(reconnect_threshold_sec),
-                                 do_reconnect=do_reconnect,
-                                 frame_crop=frame_crop,
-                                 rtsp_tcp=rtsp_tcp,
-                                 )
+            stream = VideoStream(
+                video_feed_name,
+                source_types[i],
+                streams[i],
+                manual_video_fps=int(manual_video_fps[i]),
+                queue_size=queue_size,
+                recording_dir=recording_dir,
+                reconnect_threshold_sec=int(reconnect_threshold_sec),
+                do_reconnect=do_reconnect,
+                frame_crop=frame_crop,
+                rtsp_tcp=rtsp_tcp,
+            )
 
-            self.videos.append({'video_feed_name': video_feed_name, 'stream': stream})
+            self.videos.append({"video_feed_name": video_feed_name, "stream": stream})
 
     @classmethod
     def from_list_file(cls, list_file, **kwargs):
-        '''
+        """
         Args:
         - list_file (str): Path to a txt file containing a list of camera info. Each row is <cam name>,<cam url>,<fps if applicable>. <cam url> is defined as "<source type>:<path>", where source type can be like "rtsp", "usb", "file" (see `cameras-example.list` for example)
 
@@ -69,30 +82,38 @@ class VideoManager:
         Note:
         - if all streams are files and queue_size is not given as an argument in kwargs, then queue_size will be set to None instead of default value of 3 as we do not want to drop any frames.
 
-        '''
+        """
         video_feed_names = []
         streams = []
         source_types = []
         manual_video_fps = []
         pure_files_only = True
-        with open(list_file, 'r') as f:
+        with open(list_file, "r") as f:
             for l in f.readlines():
                 l = l.strip()
-                if l.startswith('#'):
+                if l.startswith("#"):
                     continue
-                splits = l.split(',')
+                splits = l.split(",")
                 video_feed_names.append(splits[0])
                 url = splits[1]
-                source_type, path = url.split(':', 1)
+                source_type, path = url.split(":", 1)
                 source_types.append(source_type)
-                if source_type == 'usb':
+                if source_type == "usb":
                     video_path = int(path)
                     pure_files_only = False
-                elif source_type == 'file':
+                elif source_type == "file":
                     video_path = path
-                    assert Path(video_path).is_file(), f'{video_path} is defined as file but it does not exist!'
+                    assert Path(
+                        video_path
+                    ).is_file(), (
+                        f"{video_path} is defined as file but it does not exist!"
+                    )
                 else:
-                    assert source_type == 'rtsp' or source_type == 'http' or source_type == 'https', f'Source type given of {source_type} is not supported'  # Unsure if there are other types of video network stream protocols/
+                    assert (
+                        source_type == "rtsp"
+                        or source_type == "http"
+                        or source_type == "https"
+                    ), f"Source type given of {source_type} is not supported"  # Unsure if there are other types of video network stream protocols/
                     video_path = url
                     pure_files_only = False
                 streams.append(video_path)
@@ -103,8 +124,8 @@ class VideoManager:
                 else:
                     fps = -1
                 manual_video_fps.append(fps)
-        if pure_files_only and 'queue_size' not in kwargs:
-            kwargs['queue_size'] = None
+        if pure_files_only and "queue_size" not in kwargs:
+            kwargs["queue_size"] = None
 
         return cls(video_feed_names, source_types, streams, manual_video_fps, **kwargs)
 
@@ -119,7 +140,7 @@ class VideoManager:
         if self.stopped:
             # print('vid manager start')
             for vid in self.videos:
-                vid['stream'].start()
+                vid["stream"].start()
 
             self.stopped = False
 
@@ -130,34 +151,34 @@ class VideoManager:
             # time.sleep(1)
 
             for vid in self.videos:
-                vid['stream'].stop()
+                vid["stream"].stop()
 
     def check_all_stopped(self):
-        return all(vid['stream'].stopped for vid in self.videos)
+        return all(vid["stream"].stopped for vid in self.videos)
 
     def check_any_stopped(self):
-        return all(vid['stream'].stopped for vid in self.videos)
+        return all(vid["stream"].stopped for vid in self.videos)
 
     def update_info(self):
         for i, vid in enumerate(self.videos):
-            vid['info'] = vid['stream'].vidInfo
+            vid["info"] = vid["stream"].vidInfo
 
     def get_all_videos_information(self):
         all_info = []
         for vid in self.videos:
-            if not vid['stream'].inited:
-                vid['stream'].init_src()
-            all_info.append(vid['stream'].vidInfo)
+            if not vid["stream"].inited:
+                vid["stream"].init_src()
+            all_info.append(vid["stream"].vidInfo)
         return all_info
 
     def read(self):
         frames = []
 
         for vid in self.videos:
-            if not vid['stream'].more():  # Frame not here yet
+            if not vid["stream"].more():  # Frame not here yet
                 frames.append([])  # Maintain frames size(frame from each video feed)
             else:
-                frame = vid['stream'].read()
+                frame = vid["stream"].read()
                 frames.append(frame)
 
         return frames
