@@ -1,3 +1,4 @@
+"""Video Getter using cv2"""
 import os
 import time
 import logging
@@ -42,6 +43,7 @@ class VideoStream:
         if not rtsp_tcp:
             os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
         self.pauseTime = None
+        self.printTime = None
         self.stopped = True
         self.Q = deque(
             maxlen=queue_size
@@ -66,7 +68,14 @@ class VideoStream:
             assert len(frame_crop) == 4, "Given FRAME CROP is invalid"
         self.frame_crop = frame_crop
 
+        self.fps = None
+        self.vid_width = None
+        self.vid_height = None
+        self.out_vid = None
+        self.currentFrame = None
+
     def init_src(self):
+        """init src"""
         try:
             self.stream = cv2.VideoCapture(self.src)
             if not self.manual_video_fps:
@@ -103,9 +112,10 @@ class VideoStream:
             self.__init_src_recorder()
 
         except Exception as error:
-            logger.error("init stream {} error: {}".format(self.video_feed_name, error))
+            logger.error("init stream %s error: %s", self.video_feed_name, error)
 
     def __init_src_recorder(self):
+        """Init src_recorder"""
         if self.record_source_video and self.inited:
             now = datetime.now()
             day = now.strftime("%Y_%m_%d_%H-%M-%S")
@@ -120,6 +130,7 @@ class VideoStream:
             )
 
     def start(self):
+        """Start player"""
         if not self.inited:
             self.init_src()
 
@@ -128,15 +139,17 @@ class VideoStream:
         t = Thread(target=self.get, args=())
         t.start()
 
-        logger.info("Start video streaming for {}".format(self.video_feed_name))
+        logger.info("Start video streaming for %s", self.video_feed_name)
         return self
 
     def reconnect_start(self):
+        """Reconnet and start player"""
         s = Thread(target=self.reconnect, args=())
         s.start()
         return self
 
     def get(self):
+        """Get frame"""
         while not self.stopped:
             try:
                 # print('getting video' + str(time.time()))
@@ -162,9 +175,7 @@ class VideoStream:
                     time.sleep(1 / self.fps)
 
             except Exception as e:
-                logger.warning(
-                    "Stream {} grab error: {}".format(self.video_feed_name, e)
-                )
+                logger.warning("Stream %s grab error: %s", self.video_feed_name, e)
                 grabbed = False
 
             if not grabbed:
@@ -172,9 +183,9 @@ class VideoStream:
                     self.pauseTime = time.time()
                     self.printTime = time.time()
                     logger.info(
-                        "No frames for {}, starting {:0.1f}sec countdown.".format(
-                            self.video_feed_name, self.reconnect_threshold_sec
-                        )
+                        "No frames for %s, starting %.1fsec countdown",
+                        self.video_feed_name,
+                        self.reconnect_threshold_sec,
                     )
                 time_since_pause = time.time() - self.pauseTime
                 countdown_time = self.reconnect_threshold_sec - time_since_pause
@@ -183,7 +194,9 @@ class VideoStream:
                     time_since_print > 1 and countdown_time >= 0
                 ):  # prints only every 1 sec
                     logger.debug(
-                        f"No frames for {self.video_feed_name}, countdown: {countdown_time:0.1f}sec"
+                        "No frames for %s, countdown: %.1fsec",
+                        self.video_feed_name,
+                        countdown_time,
                     )
                     self.printTime = time.time()
 
@@ -191,20 +204,21 @@ class VideoStream:
                     if self.do_reconnect:
                         self.reconnect_start()
                         break
-                    elif not self.more():
-                        logger.info(f"Not reconnecting. Stopping..")
+                    if not self.more():
+                        logger.info("Not reconnecting. Stopping..")
                         self.stop()
                         break
-                    else:
-                        time.sleep(1)
-                        logger.debug(
-                            f"Countdown reached but still have unconsumed frames in deque: {len(self.Q)}"
-                        )
+                    time.sleep(1)
+                    logger.debug(
+                        "Countdown reached but still have unconsumed frames in deque: %s",
+                        len(self.Q),
+                    )
                 continue
 
             self.pauseTime = None
 
     def read(self):
+        """Read next frame"""
         if self.more():
             self.currentFrame = self.Q.pop()
         if self.resize_fn:
@@ -212,9 +226,11 @@ class VideoStream:
         return self.currentFrame
 
     def more(self):
+        """Checks if there are any more frames in the Queue"""
         return bool(self.Q)
 
     def stop(self):
+        """Stop stream"""
         if not self.stopped:
             self.stopped = True
             time.sleep(0.1)
@@ -228,10 +244,11 @@ class VideoStream:
             if self.out_vid:
                 self.out_vid.release()
 
-            logger.info("Stopped video streaming for {}".format(self.video_feed_name))
+            logger.info("Stopped video streaming for %s", self.video_feed_name)
 
     def reconnect(self):
-        logger.info(f"Reconnecting to {self.video_feed_name}...")
+        """Reconnect to stream"""
+        logger.info("Reconnecting to %s ...", self.video_feed_name)
         if self.stream:
             self.stream.release()
 
@@ -247,6 +264,6 @@ class VideoStream:
         if not self.inited:
             self.init_src()
 
-        logger.info("VideoStream for {} initialised!".format(self.video_feed_name))
+        logger.info("VideoStream for %s initialised!", self.video_feed_name)
         self.pauseTime = None
         self.start()

@@ -1,7 +1,34 @@
-from video_util import video_manager
+"""Video Manager for single feed with multiple sources"""
+from . import video_manager
 
 
 class VideoManager(video_manager.VideoManager):
+    """VideoManager that helps with multiple concurrent video streams
+
+    Args:
+        source_type (str):
+            string for identifying whether it is a stream or a video: 'usb', 'file', 'rtsp', 'http/https'
+        stream(str) :
+            file path or rtsp stream
+        manual_video_fps (int):
+            fps of stream, -1 if fps information available from video source
+        rectangle_crops(list):
+            list of (x, y, w, h) to crop as individual video feeds
+            (x,y) = the top-left coordinate of the rectangle
+            (w,h) = width and height
+        queue_size (int):
+            No. of frames to buffer in memory to prevent blocking I/O operations
+            (https://www.pyimagesearch.com/2017/02/06/faster-video-file-fps-with-cv2-videocapture-and-opencv/)
+        recording_dir (str):
+            Path to folder to record source video, None to disable recording.
+        reconnect_threshold_sec (int):
+            Min seconds between reconnection attempts, set higher for vlc to give it time to connect
+        max_height(int):
+            Max height of video in px
+        method (str):
+            'cv2' or 'vlc', 'vlc' is slower but more robust to artifacting
+    """
+
     def __init__(
         self,
         source_type,
@@ -14,21 +41,6 @@ class VideoManager(video_manager.VideoManager):
         max_height=1080,
         method="cv2",
     ):
-        """VideoManager that helps with multiple concurrent video streams
-
-        Args:
-            source_type (str): string for identifying whether it is a stream or a video: 'usb', 'file', 'rtsp', 'http/https'
-            stream(str) : file path or rtsp stream
-            manual_video_fps (int): fps of stream, -1 if fps information available from video source
-            rectangle_crops(list): list of (x, y, w, h) to crop as individual video feeds
-            (x,y) = the top-left coordinate of the rectangle
-            (w,h) = width and height
-            queue_size (int): No. of frames to buffer in memory to prevent blocking I/O operations (https://www.pyimagesearch.com/2017/02/06/faster-video-file-fps-with-cv2-videocapture-and-opencv/)
-            recording_dir (str): Path to folder to record source video, None to disable recording.
-            reconnect_threshold_sec (int): Min seconds between reconnection attempts, set higher for vlc to give it time to connect
-            max_height(int): Max height of video in px
-            method (str): 'cv2' or 'vlc', 'vlc' is slower but more robust to artifacting
-        """
 
         self.max_height = int(max_height)
         self.num_vid_streams = len(rectangle_crops)
@@ -38,11 +50,17 @@ class VideoManager(video_manager.VideoManager):
         self.videos = []
 
         if method == "cv2":
-            from .video_getter_cv2 import VideoStream
+            from .video_getter_cv2 import (  # pylint: disable=import-outside-toplevel
+                VideoStream,
+            )
         elif method == "vlc":
-            from .video_getter_vlc import VideoStream
+            from .video_getter_vlc import (  # pylint: disable=import-outside-toplevel
+                VideoStream,
+            )
         else:
-            from .video_getter_cv2 import VideoStream
+            from .video_getter_cv2 import (  # pylint: disable=import-outside-toplevel
+                VideoStream,
+            )
 
         stream = VideoStream(
             "MASTER_STREAM",
@@ -57,6 +75,7 @@ class VideoManager(video_manager.VideoManager):
         self.videos.append({"video_feed_name": "MASTER_STREAM", "stream": stream})
 
     def read(self):
+        """Read frames"""
         frames = []
 
         for vid in self.videos:

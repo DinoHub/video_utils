@@ -1,11 +1,15 @@
+"""Video Getter using VLC"""
 from datetime import datetime
+import logging
 import os
 import time
 
 import cv2
-import vlc
+import vlc  # pylint: disable=import-error
 
-from video_util import video_getter_cv2
+from . import video_getter_cv2
+
+logger = logging.getLogger(__name__)
 
 
 class VideoStream(video_getter_cv2.VideoStream):
@@ -44,7 +48,7 @@ class VideoStream(video_getter_cv2.VideoStream):
 
         self.video_stream_type = "vlc"
 
-        self.fixed_png_path = "temp_vlc_frame_{}.png".format(video_feed_name)
+        self.fixed_png_path = f"temp_vlc_frame_{video_feed_name}.png"
         vlc_flags = "--vout=dummy --aout=dummy"
         if rtsp_tcp:
             vlc_flags += " --rtsp-tcp"
@@ -67,12 +71,13 @@ class VideoStream(video_getter_cv2.VideoStream):
         self.vlc_player.set_media(self.vlc_media)
 
     def __init_src_recorder(self):
-        # disable video_getter_cv2 cv2.VideoWriter
-        pass
+        """Init src_recorder and to disable video_getter_cv2 cv2.VideoWriter"""
 
     def get(self):
+        """Get frame"""
         self.vlc_player.play()
-        # Known Issue: This needs to be called again after "play()" for the video feed to start coming in, unable to figure out why
+        # Known Issue: This needs to be called again after "play()" for the video feed to start coming in,
+        # unable to figure out why
         self.vlc_player = self.vlc_instance.media_player_new()
         self.vlc_player.set_mrl(self.src)
         self.vlc_player.play()
@@ -93,9 +98,7 @@ class VideoStream(video_getter_cv2.VideoStream):
                     time.sleep(1 / self.fps)
 
             except Exception as e:
-                logger.warning(
-                    "Stream {} grab error: {}".format(self.video_feed_name, e)
-                )
+                logger.warning("Stream %s grab error: %s", self.video_feed_name, e)
                 grabbed = False
 
             if not grabbed:
@@ -103,9 +106,9 @@ class VideoStream(video_getter_cv2.VideoStream):
                     self.pauseTime = time.time()
                     self.printTime = time.time()
                     logger.info(
-                        "No frames for {}, starting {:0.1f}sec countdown.".format(
-                            self.video_feed_name, self.reconnect_threshold_sec
-                        )
+                        "No frames for %s, starting %.1fsec countdown",
+                        self.video_feed_name,
+                        self.reconnect_threshold_sec,
                     )
                 time_since_pause = time.time() - self.pauseTime
                 countdown_time = self.reconnect_threshold_sec - time_since_pause
@@ -114,7 +117,9 @@ class VideoStream(video_getter_cv2.VideoStream):
                     time_since_print > 1 and countdown_time >= 0
                 ):  # prints only every 1 sec
                     logger.debug(
-                        f"No frames for {self.video_feed_name}, countdown: {countdown_time:0.1f}sec"
+                        "No frames for %s, countdown: %.1fsec",
+                        self.video_feed_name,
+                        countdown_time,
                     )
                     self.printTime = time.time()
 
@@ -122,20 +127,21 @@ class VideoStream(video_getter_cv2.VideoStream):
                     if self.do_reconnect:
                         self.reconnect_start()
                         break
-                    elif not self.more():
-                        logger.info(f"Not reconnecting. Stopping..")
+                    if not self.more():
+                        logger.info("Not reconnecting. Stopping..")
                         self.stop()
                         break
-                    else:
-                        time.sleep(1)
-                        logger.debug(
-                            f"Countdown reached but still have unconsumed frames in deque: {len(self.Q)}"
-                        )
+                    time.sleep(1)
+                    logger.debug(
+                        "Countdown reached but still have unconsumed frames in deque: %s",
+                        len(self.Q),
+                    )
                 continue
 
             self.pauseTime = None
 
     def stop(self):
+        """Stop stream"""
         if not self.stopped:
             self.stopped = True
             time.sleep(0.1)
@@ -148,10 +154,11 @@ class VideoStream(video_getter_cv2.VideoStream):
                 self.vlc_player.release()
                 self.vlc_instance.release()
 
-            logger.info("Stopped video streaming for {}".format(self.video_feed_name))
+            logger.info("Stopped video streaming for %s", self.video_feed_name)
 
     def reconnect(self):
-        logger.info(f"Reconnecting to {self.video_feed_name}...")
+        """Reconnect to stream"""
+        logger.info("Reconnecting to %s ...", self.video_feed_name)
         if self.more():
             self.Q.clear()
 
@@ -159,13 +166,14 @@ class VideoStream(video_getter_cv2.VideoStream):
             self.vlc_player.stop()
             self.vlc_player.release()
 
-        # Known Issue: This needs to be called again after "play()" for the video feed to start coming in, unable to figure out why
+        # Known Issue: This needs to be called again after "play()" for the video feed to start coming in,
+        # unable to figure out why
         self.vlc_player = self.vlc_instance.media_player_new()
         self.vlc_player.set_mrl(self.src)
 
         if not self.inited:
             self.init_src()
 
-        logger.info("VideoStream for {} initialised!".format(self.video_feed_name))
+        logger.info("VideoStream for %s initialised!", self.video_feed_name)
         self.pauseTime = None
         self.start()

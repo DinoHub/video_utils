@@ -1,12 +1,15 @@
-import cv2
+"""Frame Drawer"""
 import copy
+import cv2
 
 RED = (0, 0, 255)
 LESS_RED = (0, 20, 100)
 TEAL = (148, 184, 0)
 
 
-class FrameDrawer(object):
+class FrameDrawer:
+    """Frame Drawer"""
+
     def __init__(self, color=(255, 255, 255), font=cv2.FONT_HERSHEY_COMPLEX):
         self.color = color
 
